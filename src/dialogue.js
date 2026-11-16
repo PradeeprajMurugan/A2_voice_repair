@@ -219,14 +219,14 @@ export class DialogueManager {
   askSlot(intent, pre = '') {
     this.pending = { kind: 'slot', tool: intent.tool, args: { ...intent.args }, slot: intent.missing[0], reasks: 0 };
     this.setState('clarifying');
-    this.say(pre + slotQuestion(intent.tool), { then: () => this.startWait(CLARIFY_TIMEOUT_MS, () => this.clarifyTimeout()) });
+    this.say((pre ? pre + ' ' : '') + slotQuestion(intent.tool), { then: () => this.startWait(CLARIFY_TIMEOUT_MS, () => this.clarifyTimeout()) });
   }
 
   askChoice(options, pre = '', { open = false } = {}) {
     this.pending = { kind: open ? 'open' : 'choice', options, reasks: 0 };
     this.setState('clarifying');
     const q = open ? 'What did you want instead?' : `Did you want ${joinOr(options.map((o) => OPTION_PHRASE[o]))}?`;
-    this.say(pre + q, { then: () => this.startWait(CLARIFY_TIMEOUT_MS, () => this.clarifyTimeout()) });
+    this.say((pre ? pre + ' ' : '') + q, { then: () => this.startWait(CLARIFY_TIMEOUT_MS, () => this.clarifyTimeout()) });
   }
 
   // ---------------------------------------------------------------- repair
