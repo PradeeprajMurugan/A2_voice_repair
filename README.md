@@ -2,7 +2,7 @@
 
 Assignment 2 prototype · Intelligent Interactive Systems · University of Birmingham
 
-**README prose word count: 880** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
+**README prose word count: 955** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
 
 When a voice assistant mishears ("Calling Mom…" instead of a timer), Sous lets the cook cut in with
 "No, wait — a timer". It stops talking, undoes the wrong action first, says in one sentence what it undid,
@@ -103,6 +103,12 @@ runs first: 2 ms.
 unsure about the request, never before the undo. Its test exposed a risk: a model-only guess ("get my old
 man on the line" → call Dad, 0.84) would have dialled unasked. High-cost actions supported only by the
 model are now always confirmed. Not yet checked against the real API.
+
+**Stage 7 — storyboards and sources** ([d2f93fc](../../commit/d2f93fc), [43e296f](../../commit/43e296f)).
+Capturing storyboard screenshots showed the turn indicator wrongly reading "Stopped" for 0.7 s after every
+page load, hiding the call countdown; fixed. Re-checking the Assignment 1 sources corrected the venue of
+Cuadra et al. (CSCW 2021, not CHI), the years of Myers et al. (2018) and Jiang et al. (2013) and the DOI of
+Wenzel & Kaufman; Avila et al. (2022) could not be found and was dropped.
 
 ## AI assistance
 
