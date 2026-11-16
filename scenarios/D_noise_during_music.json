@@ -1,0 +1,20 @@
+{
+  "id": "D_noise_during_music",
+  "title": "D. Kitchen noise during music: cautious criterion avoids a false stop",
+  "story": "Music is playing. Someone in the background says something like 'no' over the extractor fan. Later the user clearly says 'stop the music'.",
+  "steps": [
+    { "at": 0, "heard": "play some jazz", "asr": 0.95 },
+    { "at": 3000, "heard": "no", "asr": 0.5, "loudness": 0.4 },
+    { "at": 6000, "heard": "stop the music", "asr": 0.95 },
+    { "at": 9000, "end": true }
+  ],
+  "expect": [
+    { "event": "interruption", "path": "kind", "equals": "below_criterion", "nth": 1 },
+    { "event": "interruption", "path": "kind", "equals": "barge_in", "nth": 2 },
+    { "said": "Playing jazz." },
+    { "said": "Music stopped." },
+    { "world": "music", "equals": null },
+    { "event": "undo", "count": 1 },
+    { "state": "idle" }
+  ]
+}

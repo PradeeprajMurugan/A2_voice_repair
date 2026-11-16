@@ -1,0 +1,19 @@
+{
+  "id": "C_shout_safe_pause",
+  "title": "C. Unintelligible shout during a call: safe pause, then an explicit ending",
+  "story": "The assistant starts calling Dad by mistake. The user shouts something the recogniser cannot parse at all, then gets distracted by the stove and never answers.",
+  "steps": [
+    { "at": 0, "heard": "call dad", "asr": 0.9, "intended": "play some jazz" },
+    { "at": 800, "heard": "[shout]", "asr": 0.2, "loudness": 0.95 },
+    { "at": 15000, "end": true }
+  ],
+  "expect": [
+    { "event": "interruption", "path": "kind", "equals": "safe_pause" },
+    { "event": "undo", "path": "result.beforeConnect", "equals": true },
+    { "event": "committed", "count": 0 },
+    { "said": "Call to Dad cancelled before it connected. What did you want instead?" },
+    { "event": "timeout", "count": 1 },
+    { "said": "Okay, nothing else for now." },
+    { "state": "idle" }
+  ]
+}

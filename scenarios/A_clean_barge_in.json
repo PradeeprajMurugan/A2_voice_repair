@@ -1,0 +1,21 @@
+{
+  "id": "A_clean_barge_in",
+  "title": "A. Clean barge-in: wrong call stopped, timer set (Lab 3 Test A)",
+  "story": "Hands in dough, the user asks for a timer. The recogniser hears 'call mom'. While the assistant is still saying 'Calling Mom…' the user cuts in.",
+  "steps": [
+    { "at": 0, "heard": "call mom", "asr": 0.92, "intended": "set a ten minute timer" },
+    { "at": 500, "heard": "No, wait, stop! Set a ten minute timer", "asr": 0.9 },
+    { "at": 6000, "end": true }
+  ],
+  "expect": [
+    { "event": "undo", "path": "result.beforeConnect", "equals": true },
+    { "event": "undo", "path": "latencyMs", "max": 0 },
+    { "event": "committed", "count": 0 },
+    { "event": "speech_stopped", "min": 1 },
+    { "said": "Call to Mom cancelled before it connected. Timer set for 10 minutes." },
+    { "world": "call.status", "equals": "ended" },
+    { "world": "timers.length", "equals": 1 },
+    { "world": "timers.0.minutes", "equals": 10 },
+    { "state": "idle" }
+  ]
+}

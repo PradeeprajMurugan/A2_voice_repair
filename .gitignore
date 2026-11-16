@@ -10,6 +10,9 @@ __pycache__/
 # Exported session logs (keep curated ones in evidence/)
 logs/
 
+# Local tool config
+.claude/
+
 # OS / editor
 .DS_Store
 Thumbs.db

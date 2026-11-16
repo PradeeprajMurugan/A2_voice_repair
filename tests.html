@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sous tests</title>
+  <style>
+    body { font: 15px/1.45 system-ui, sans-serif; margin: 24px; color: #1d1d1f; background: #fafafa; }
+    h1 { font-size: 20px; } h2 { font-size: 16px; margin-top: 28px; }
+    .pass { color: #0a7a3d; } .fail { color: #b3261e; font-weight: 600; }
+    table { border-collapse: collapse; width: 100%; max-width: 980px; background: #fff; }
+    td, th { border: 1px solid #ddd; padding: 4px 8px; text-align: left; vertical-align: top; font-size: 13px; }
+    details { margin: 6px 0 14px; } pre { font-size: 12px; background: #f1f1f1; padding: 8px; overflow: auto; }
+    #summary { font-size: 18px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Sous — scenario replay and unit tests</h1>
+  <p>Deterministic replays with a simulated clock: no microphone, speaker or API key needed.</p>
+  <p id="summary">Running…</p>
+  <h2>Unit tests</h2>
+  <table id="unit"><tr><th>Test</th><th>Result</th></tr></table>
+  <h2>Scenarios</h2>
+  <div id="scenarios"></div>
+  <script type="module">
+    import { runUnitTests, runScenario, loadScenarios } from './tests/runner.js';
+    const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const unit = runUnitTests();
+    const ut = document.getElementById('unit');
+    for (const r of unit) ut.insertAdjacentHTML('beforeend',
+      `<tr><td>${esc(r.name)}</td><td class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'pass' : esc(r.error)}</td></tr>`);
+
+    const scs = await loadScenarios();
+    const results = scs.map((s) => runScenario(s));
+    const box = document.getElementById('scenarios');
+    for (const r of results) {
+      const rows = r.checks.map((c) => `<tr><td>${esc(c.desc)}</td><td class="${c.ok ? 'pass' : 'fail'}">${c.ok ? 'pass' : 'FAIL — got ' + esc(JSON.stringify(c.actual))}</td></tr>`).join('');
+      box.insertAdjacentHTML('beforeend', `
+        <h3 class="${r.passed ? 'pass' : 'fail'}">${r.passed ? '✔' : '✘'} ${esc(r.title)}</h3>
+        <table><tr><th>Expectation</th><th>Result</th></tr>${rows}</table>
+        <details><summary>What the assistant said</summary><pre>${esc(r.said.join('\n'))}</pre></details>
+        <details><summary>Event log</summary><pre>${esc(r.events.map((e) => JSON.stringify(e)).join('\n'))}</pre></details>`);
+    }
+    const uPass = unit.filter((r) => r.ok).length, sPass = results.filter((r) => r.passed).length;
+    const all = uPass === unit.length && sPass === results.length;
+    const s = document.getElementById('summary');
+    s.textContent = `${all ? 'All passing' : 'Failures'} — unit ${uPass}/${unit.length}, scenarios ${sPass}/${results.length}`;
+    s.className = all ? 'pass' : 'fail';
+    window.__testResults = { unit, scenarios: results.map((r) => ({ id: r.id, passed: r.passed, failed: r.checks.filter((c) => !c.ok) })) };
+  </script>
+</body>
+</html>

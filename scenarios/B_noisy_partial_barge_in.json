@@ -1,0 +1,23 @@
+{
+  "id": "B_noisy_partial_barge_in",
+  "title": "B. Noisy partial barge-in: the correction is clipped by a dropped pan (Lab 3 Test B, revised)",
+  "story": "Same misrecognised call. The user shouts 'No, wait!' but drops a pan, so the recogniser only gets '…imer'. In Lab 3 the system stopped the call and went silent.",
+  "steps": [
+    { "at": 0, "heard": "call mom", "asr": 0.92, "intended": "set a ten minute timer" },
+    { "at": 900, "heard": "no wait [crash] imer", "asr": 0.55, "loudness": 0.9 },
+    { "at": 5000, "heard": "yes", "asr": 0.9 },
+    { "at": 8000, "heard": "ten", "asr": 0.85 },
+    { "at": 12000, "end": true }
+  ],
+  "expect": [
+    { "event": "interruption", "path": "kind", "equals": "barge_in" },
+    { "event": "undo", "path": "result.beforeConnect", "equals": true },
+    { "event": "committed", "count": 0 },
+    { "said": "Call to Mom cancelled before it connected. Did you want a timer?" },
+    { "said": "Timer for how many minutes?" },
+    { "said": "Timer set for 10 minutes." },
+    { "event": "timeout", "count": 0 },
+    { "world": "timers.0.minutes", "equals": 10 },
+    { "state": "idle" }
+  ]
+}

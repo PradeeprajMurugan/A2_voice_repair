@@ -1,0 +1,18 @@
+{
+  "id": "E_confirm_then_redirect",
+  "title": "E. Medium confidence on an irreversible action: confirm, user redirects in one turn",
+  "story": "A muffled request comes through as 'call mom' with medium confidence. Because a call cannot be un-rung, the assistant asks first. The user says no and gives the real request in the same breath.",
+  "steps": [
+    { "at": 0, "heard": "call mom", "asr": 0.7, "intended": "set a timer for five minutes" },
+    { "at": 2000, "heard": "no, set a timer for five minutes", "asr": 0.9 },
+    { "at": 6000, "end": true }
+  ],
+  "expect": [
+    { "event": "decision", "path": "decision", "equals": "confirm", "nth": 0 },
+    { "said": "Call Mom?" },
+    { "said": "Okay. Timer set for 5 minutes." },
+    { "world": "call", "equals": null },
+    { "world": "timers.0.minutes", "equals": 5 },
+    { "state": "idle" }
+  ]
+}
