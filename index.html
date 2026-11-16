@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sous — barge-in repair prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Sous <span class="sub">kitchen voice assistant · barge-in repair prototype</span></h1>
+    </div>
+    <div class="badges">
+      <span class="badge sim" title="Calls, timers, music and the list are simulated in the browser">Simulated actions</span>
+      <span class="badge" id="parserBadge">Parser: rules</span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- Glanceable state: the screen holds the state, speech carries the exception (L07 hybrid) -->
+    <section class="panel status" aria-live="polite">
+      <div id="turn" class="turn idle">
+        <div class="turn-label" id="turnLabel">Ready</div>
+        <div class="turn-hint" id="turnHint">Say or type a request</div>
+      </div>
+      <div class="said" id="lastSaid"></div>
+
+      <h2>Kitchen</h2>
+      <div class="card" id="callCard"><div class="card-title">Call</div><div id="callBody" class="muted">No call</div></div>
+      <div class="card"><div class="card-title">Timers</div><ul id="timers" class="list"><li class="muted">None</li></ul></div>
+      <div class="card"><div class="card-title">Music</div><div id="music" class="muted">Off</div></div>
+      <div class="card"><div class="card-title">Shopping list</div><ul id="shopping" class="list"><li class="muted">Empty</li></ul></div>
+    </section>
+
+    <section class="panel convo">
+      <h2>Conversation</h2>
+      <div id="transcript" class="transcript" aria-live="polite"></div>
+      <div id="interim" class="interim"></div>
+      <div id="chips" class="chips" aria-label="Options you can say"></div>
+
+      <form id="sayForm" class="say">
+        <button type="button" id="micBtn" class="mic" aria-pressed="false" title="Use the microphone (Chrome/Edge)">🎙 Mic off</button>
+        <input id="sayInput" autocomplete="off" placeholder="Type what you say, e.g. “call mom” then “no wait, a timer”">
+        <button type="submit">Say</button>
+      </form>
+
+      <div class="sim-controls">
+        <fieldset>
+          <legend>Kitchen noise (typed input)</legend>
+          <label><input type="radio" name="noise" value="0" checked> Quiet</label>
+          <label><input type="radio" name="noise" value="1"> Extractor fan</label>
+          <label><input type="radio" name="noise" value="2"> Busy kitchen</label>
+        </fieldset>
+        <label class="pan"><input type="checkbox" id="panDrop"> Drop a pan on the next thing I say</label>
+      </div>
+      <div class="quick">
+        <span class="muted">Try:</span>
+        <button class="q" data-say="call mom">call mom</button>
+        <button class="q" data-say="No, wait, stop! Set a ten minute timer">no, wait — a ten minute timer</button>
+        <button class="q" data-say="play some jazz">play some jazz</button>
+        <button class="q" data-say="stop the music">stop the music</button>
+        <button class="q" data-say="add eggs to the shopping list">add eggs</button>
+      </div>
+    </section>
+
+    <section class="panel why">
+      <h2>Why it did that</h2>
+      <p class="muted small">Every decision with its reason, from the dialogue manager's own log.</p>
+      <ol id="why" class="why-list"></ol>
+
+      <h2>Replay a scenario</h2>
+      <div class="replay">
+        <select id="scenario"></select>
+        <button id="playBtn">Play</button>
+      </div>
+      <p id="story" class="small muted"></p>
+      <div class="row">
+        <button id="resetBtn">Reset</button>
+        <button id="exportBtn">Export log</button>
+        <a href="tests.html" target="_blank">Run tests</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot small muted">
+    Placeholders: no real phone, timer or speaker hardware. Echo cancellation is approximated by a text filter — use headphones with the mic.
+  </footer>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
