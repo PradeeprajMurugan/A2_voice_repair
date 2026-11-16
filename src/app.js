@@ -13,7 +13,7 @@ const OPTION_LABEL = { set_timer: 'Timer', call_contact: 'Call', play_music: 'Mu
 
 const tts = createTts();
 const earcons = createEarcons();
-let dm, kitchen, view, flashStop = 0, replayTimers = [];
+let dm, kitchen, view, flashStop = -Infinity, replayTimers = []; // -Infinity: no stop has happened yet
 let llmFn = null; // set if the local server has model credentials
 
 // ------------------------------------------------------------------ setup / reset
@@ -202,6 +202,9 @@ async function loadScenarios() {
   scenarios = await Promise.all(names.map(async (n) => (await fetch('scenarios/' + n)).json()));
   $('scenario').innerHTML = scenarios.map((s, i) => `<option value="${i}">${esc(s.title)}</option>`).join('');
   showStory();
+  // ?play=N starts scenario N on load (used to capture storyboard screenshots).
+  const auto = new URLSearchParams(location.search).get('play');
+  if (auto !== null && scenarios[auto]) { $('scenario').value = auto; showStory(); $('playBtn').click(); }
 }
 function showStory() { const s = scenarios[$('scenario').value]; $('story').textContent = s ? s.story : ''; }
 $('scenario').addEventListener('change', showStory);
