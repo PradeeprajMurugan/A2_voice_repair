@@ -250,6 +250,11 @@ export class DialogueManager {
     if (p.candidates.length) {
       return this.askChoice(p.candidates.slice(0, MAX_OPTIONS).map((c) => c.tool), undone);
     }
+    // A clean "stop the music": the user only wanted it stopped. Report and finish.
+    if (p.repair.kind === 'stop' && !p.masked) {
+      this.setState('idle');
+      return this.say(undone);
+    }
     // Lab 3 revision: the correction was lost, so say what was undone and ask — never go silent.
     return this.askChoice(ALL_OPTIONS.slice(0, MAX_OPTIONS), undone, { open: true });
   }

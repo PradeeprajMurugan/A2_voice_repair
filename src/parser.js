@@ -18,6 +18,8 @@ const REPAIR_MARKERS = [
 ];
 // Markers that count even mid-utterance ("set a timer, not that, music").
 const ANYWHERE_MARKERS = new Set(['not that', 'i meant', 'i mean', 'never mind', 'nevermind']);
+// Pure "stop" markers end an action; every other marker signals that something else was wanted.
+const STOP_MARKERS = new Set(['stop', 'cancel', 'cancel that', 'hang up', 'undo', 'never mind', 'nevermind']);
 
 const FILLER = new Set(['the', 'a', 'an', 'that', 'this', 'it', 'please', 'um', 'uh', 'er', 'oh', 'okay', 'ok', 'so', 'just', 'and', 'instead', 'sorry']);
 const CANCEL_OBJECTS = new Set(['call', 'timer', 'music', 'song', 'it', 'that', 'this', 'list', 'item']);
@@ -220,11 +222,14 @@ export function parse(text, asrConfidence = 1) {
   const intent = top && top.score >= 0.3 ? buildIntent(top.tool, rest, top.score) : null;
 
   const strength = markers.length ? Math.max(...markers.map((m) => m.strength)) : 0;
+  const kind = !markers.length ? null : markers.every((m) => STOP_MARKERS.has(m.phrase)) ? 'stop' : 'correct';
   return {
     raw: text,
     normalized: norm,
     empty: tokens.length === 0,
-    repair: { detected: markers.length > 0, markers: markers.map((m) => m.phrase), strength: round(strength * asrConfidence) },
+    // Part of the utterance was lost to noise: the user may have said more than we heard.
+    masked: /\[[^\]]*\]/.test(String(text || '')) || asrConfidence < 0.7,
+    repair: { detected: markers.length > 0, kind, markers: markers.map((m) => m.phrase), strength: round(strength * asrConfidence) },
     cancelObject,
     intent,
     candidates: candidates.slice(0, 3),
