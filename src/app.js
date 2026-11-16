@@ -14,7 +14,7 @@ const OPTION_LABEL = { set_timer: 'Timer', call_contact: 'Call', play_music: 'Mu
 const tts = createTts();
 const earcons = createEarcons();
 let dm, kitchen, view, flashStop = 0, replayTimers = [];
-let parseFn = ruleParse;
+let llmFn = null; // set if the local server has model credentials
 
 // ------------------------------------------------------------------ setup / reset
 function build() {
@@ -25,7 +25,8 @@ function build() {
   dm = new DialogueManager({
     clock: realClock,
     kitchen,
-    parseFn: (text, conf) => parseFn(text, conf),
+    parseFn: ruleParse,
+    llm: llmFn,
     io: {
       speak: (text, onEnd) => tts.speak(text, onEnd),
       stopSpeaking: () => tts.stop(),
@@ -82,6 +83,7 @@ function turnInfo(v) {
   const call = v.world.call;
   if (performance.now() - flashStop < 700) return ['stopped', 'Stopped', 'Undone straight away'];
   if (v.speaking) return ['speaking', 'Speaking', 'Talk over me to interrupt'];
+  if (v.thinking) return ['thinking', 'Working it out…', 'Checking what you meant'];
   if (v.state === 'announcing' && call?.status === 'dialling') {
     const left = Math.max(0, (call.startedAt + 3000 - performance.now()) / 1000);
     return ['announcing', `Calling ${cap(call.name)} in ${left.toFixed(1)} s`, 'Say “stop” or “no, wait” to cancel'];
@@ -155,8 +157,10 @@ function renderWhy(events) {
       items.push(`<li><span class="k">check failed (${e.result.check})</span> — ${esc(e.result.reason)}</li>`);
     } else if (e.type === 'timeout') {
       items.push(`<li><span class="k">timeout</span> — no answer, ended out loud instead of silently</li>`);
-    } else if (e.type === 'parsed' && e.parser && e.parser !== 'rules') {
-      items.push(`<li><span class="k">parser</span> — ${esc(e.parser)}</li>`);
+    } else if (e.type === 'llm_result') {
+      items.push(e.used
+        ? `<li><span class="k">model proposal</span> — ${esc(e.intent ? `${e.intent.tool} ${JSON.stringify(e.intent.args)} at ${e.intent.confidence}` : 'options: ' + e.alternatives.join(', '))}${e.rejectedArgs?.length ? ` · rejected ${esc(e.rejectedArgs.join(', '))}` : ''}</li>`
+        : `<li><span class="k">model not used</span> — ${esc(e.reason)}; rules decide</li>`);
     }
   }
   $('why').innerHTML = items.slice(-14).join('') || '<li class="muted">Nothing yet</li>';
@@ -224,7 +228,10 @@ $('exportBtn').addEventListener('click', () => {
 
 // ------------------------------------------------------------------ optional LLM parser
 makeLlmParser().then((llm) => {
-  if (llm) { parseFn = llm; $('parserBadge').textContent = 'Parser: LLM + rules fallback'; }
+  if (!llm) return;
+  llmFn = llm;
+  dm.llm = llm;
+  $('parserBadge').textContent = `Parser: rules + ${llm.model}`;
 });
 
 build();

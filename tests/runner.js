@@ -151,10 +151,74 @@ export const UNIT_TESTS = [
   }],
 ];
 
-export function runUnitTests() {
-  return UNIT_TESTS.map(([name, fn]) => {
-    try { fn(); return { name, ok: true }; } catch (e) { return { name, ok: false, error: e.message }; }
-  });
+// ------------------------------------------------------------- model-path tests (fake model)
+const flush = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0)); };
+
+function rig(llm) {
+  const clock = new FakeClock();
+  const io = makeFakeIO(clock);
+  const dm = new DialogueManager({ clock, kitchen: createKitchen(clock), io, llm });
+  return { clock, io, dm };
+}
+
+UNIT_TESTS.push(
+  ['model: fills in a request the rules are unsure about', async () => {
+    const { dm, io } = rig(async () => ({ tool: 'set_timer', args: { minutes: 12 }, confidence: 0.95, alternatives: [] }));
+    dm.hear({ text: 'can you put something on for the bread, twelve minutes' });
+    await flush();
+    eq(io.said.at(-1), 'Timer set for 12 minutes.', 'said');
+  }],
+  ['model: undo happens before the model is even asked', async () => {
+    const { dm, io, clock } = rig(async () => ({ tool: 'set_timer', args: {}, confidence: 0.9, alternatives: [] }));
+    dm.hear({ text: 'call mom', asrConfidence: 0.92 });
+    clock.advance(400);
+    dm.hear({ text: 'no wait, the thing for the oven', asrConfidence: 0.9 });
+    const types = dm.events.map((e) => e.type);
+    eq(types.indexOf('undo') < types.lastIndexOf('llm_request'), true, 'undo before model call');
+    await flush();
+    eq(io.said.at(-1), 'Call to Mom cancelled before it connected. Timer for how many minutes?', 'said');
+  }],
+  ['model: invalid arguments are dropped, never executed', async () => {
+    const { dm, io } = rig(async () => ({ tool: 'set_timer', args: { minutes: -5 }, confidence: 0.9, alternatives: [] }));
+    dm.hear({ text: 'timer for a while' });
+    await flush();
+    eq(dm.events.find((e) => e.type === 'llm_result').rejectedArgs, ['minutes'], 'rejected');
+    eq(io.said.at(-1), 'Timer for how many minutes?', 'asked instead');
+  }],
+  ['model: a model-only guess at a call is confirmed, not run', async () => {
+    const { dm, io } = rig(async () => ({ tool: 'call_contact', args: { name: 'dad' }, confidence: 0.99, alternatives: [] }));
+    dm.hear({ text: 'get my old man on the line', asrConfidence: 0.85 });
+    await flush();
+    eq(io.said.at(-1), 'Call Dad?', 'confirm');
+    eq(dm.kitchen.snapshot().call, null, 'no call placed');
+  }],
+  ['model: failure falls back to the rules', async () => {
+    const { dm, io } = rig(async () => { throw new Error('offline'); });
+    dm.hear({ text: 'set a timer' });
+    await flush();
+    eq(dm.events.find((e) => e.type === 'llm_result').used, false, 'not used');
+    eq(io.said.at(-1), 'Timer for how many minutes?', 'rules decided');
+  }],
+  ['model: an answer that arrives after the user spoke again is dropped', async () => {
+    let release;
+    const { dm, io } = rig(() => new Promise((r) => { release = r; }));
+    dm.hear({ text: 'put on something nice' });
+    await flush(); // the model call starts on a microtask
+    dm.hear({ text: 'play jazz' });
+    release({ tool: 'add_to_list', args: { item: 'nice' }, confidence: 0.9, alternatives: [] });
+    await flush();
+    eq(dm.events.some((e) => e.type === 'llm_dropped'), true, 'dropped');
+    eq(dm.kitchen.snapshot().list.length, 0, 'stale proposal not executed');
+    eq(io.said.at(-1), 'Playing jazz.', 'said');
+  }],
+);
+
+export async function runUnitTests() {
+  const out = [];
+  for (const [name, fn] of UNIT_TESTS) {
+    try { await fn(); out.push({ name, ok: true }); } catch (e) { out.push({ name, ok: false, error: e.message }); }
+  }
+  return out;
 }
 
 export async function loadScenarios(base = 'scenarios/') {

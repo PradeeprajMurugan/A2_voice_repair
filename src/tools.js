@@ -37,6 +37,18 @@ const IDEMPOTENCY_WINDOW_MS = 3000;
 
 export function cap(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
 
+// Is one argument value valid for a tool? (Used to filter a model's proposal arg by arg.)
+export function checkArg(toolName, k, v) {
+  const spec = TOOLS[toolName]?.args[k];
+  if (!spec || v === undefined || v === null || v === '') return false;
+  if (spec.type === 'number' && (typeof v !== 'number' || !Number.isFinite(v))) return false;
+  if (spec.type === 'string' && typeof v !== 'string') return false;
+  if (spec.enum && !spec.enum.includes(v)) return false;
+  if (spec.min !== undefined && v < spec.min) return false;
+  if (spec.max !== undefined && v > spec.max) return false;
+  return true;
+}
+
 // --- Check 1: shape -------------------------------------------------------------------
 export function checkShape(call) {
   const tool = TOOLS[call?.tool];

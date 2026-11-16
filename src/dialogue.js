@@ -15,7 +15,7 @@
 
 import { parse as ruleParse } from './parser.js';
 import { decide, classifyInterruption, costOf, THRESHOLDS, LOUD, MAX_OPTIONS } from './policy.js';
-import { TOOLS, CONTACTS, describeResult, cap } from './tools.js';
+import { TOOLS, CONTACTS, describeResult, cap, checkArg } from './tools.js';
 
 export const CLARIFY_TIMEOUT_MS = 8000;
 export const CONFIRM_TIMEOUT_MS = 6000;
@@ -48,10 +48,14 @@ export class DialogueManager {
    * @param clock    realClock or FakeClock
    * @param kitchen  createKitchen(clock)
    * @param io       { speak(text, onEnd), stopSpeaking(), earcon(kind), onUpdate(view) }
-   * @param parseFn  (text, asrConfidence) => parsed   (rule parser by default; LLM parser optional)
+   * @param parseFn  (text, asrConfidence) => parsed   (rule parser, synchronous)
+   * @param llm      optional async (text, context) => proposal|null. Consulted only when the rules
+   *                 are unsure what the user wants next; never on the undo path.
    */
-  constructor({ clock, kitchen, io, parseFn = ruleParse }) {
-    Object.assign(this, { clock, kitchen, io, parseFn });
+  constructor({ clock, kitchen, io, parseFn = ruleParse, llm = null, llmTimeoutMs = 2500 }) {
+    Object.assign(this, { clock, kitchen, io, parseFn, llm, llmTimeoutMs });
+    this.interpretId = 0;
+    this.thinking = false;
     this.state = 'idle';
     this.speaking = false;
     this.lastSaid = '';
@@ -74,6 +78,7 @@ export class DialogueManager {
     return {
       state: this.state,
       speaking: this.speaking,
+      thinking: this.thinking,
       lastSaid: this.lastSaid,
       target: this.target?.result ?? null,
       pending: this.pending,
@@ -140,6 +145,8 @@ export class DialogueManager {
    */
   hear({ text, asrConfidence = 1, loudness = 0.5, source = 'typed' }) {
     const tHeard = this.clock.now();
+    this.interpretId++; // a new turn supersedes any model call still in flight
+    this.thinking = false;
     this.log('heard', { text, asrConfidence, loudness, source });
     const p = this.parseFn(text, asrConfidence);
     this.log('parsed', {
@@ -161,11 +168,79 @@ export class DialogueManager {
       case 'safe_pause': return this.repair(target, p, tHeard, { safePause: true });
       case 'nothing_to_stop': return this.say("There's nothing to cancel right now.");
       case 'below_criterion': return this.update(); // evidence too weak: keep going quietly
-      case 'new_command': return this.command(p);
+      case 'new_command': return this.interpret(p, (q) => this.command(q));
       default:
-        if (!p.empty && (!target || p.candidates.length)) return this.command(p);
+        if (!p.empty && (!target || p.candidates.length)) return this.interpret(p, (q) => this.command(q));
         return this.update();
     }
+  }
+
+  // ---------------------------------------------------------------- optional model
+  // The rules always answer first. The model is asked only when they are unsure about the
+  // *request* (never about "stop"), and its proposal passes the same shape check as any call.
+  needsModel(p) {
+    if (!this.llm || p.empty || !p.normalized) return false;
+    if (p.repair.kind === 'stop' && !p.intent && !p.candidates.length) return false;
+    return !p.intent || p.intent.confidence < THRESHOLDS.act || p.intent.missing.length > 0;
+  }
+
+  interpret(p, cont) {
+    if (!this.needsModel(p)) return cont(p);
+    const id = ++this.interpretId;
+    this.thinking = true;
+    this.log('llm_request', { text: p.raw, rules: p.intent });
+    this.update();
+    const context = { state: this.state, lastAction: this.target?.result?.tool ?? null };
+    let settled = false;
+    const finish = (proposal, why) => {
+      if (settled) return;
+      settled = true;
+      if (id !== this.interpretId) return this.log('llm_dropped', { reason: 'user spoke again' });
+      this.thinking = false;
+      cont(this.mergeProposal(p, proposal, why));
+    };
+    const timer = this.clock.setTimeout(() => finish(null, 'timeout'), this.llmTimeoutMs);
+    Promise.resolve()
+      .then(() => this.llm(p.raw, context))
+      .then((r) => { this.clock.clearTimeout(timer); finish(r, 'ok'); })
+      .catch((e) => { this.clock.clearTimeout(timer); finish(null, 'error: ' + (e?.message || e)); });
+  }
+
+  mergeProposal(p, proposal, why) {
+    if (!proposal || why !== 'ok') {
+      this.log('llm_result', { used: false, reason: why });
+      return p;
+    }
+    const alternatives = (proposal.alternatives || []).filter((t) => TOOLS[t]);
+    if (!proposal.tool || !TOOLS[proposal.tool]) {
+      this.log('llm_result', { used: !!alternatives.length, reason: 'no single request', alternatives });
+      return alternatives.length
+        ? { ...p, intent: null, candidates: alternatives.map((tool) => ({ tool, score: 0.4 })), parser: 'llm (options only)' }
+        : p;
+    }
+    // Shape-check the model's arguments; drop any it got wrong rather than trusting them.
+    const args = {};
+    for (const [k, v] of Object.entries(proposal.args || {})) {
+      if (checkArg(proposal.tool, k, v)) args[k] = v;
+    }
+    const rejected = Object.keys(proposal.args || {}).filter((k) => !(k in args));
+    const required = Object.entries(TOOLS[proposal.tool].args).filter(([, s]) => s.required).map(([k]) => k);
+    // Self-reported model confidence is not calibrated: scale by recogniser confidence and cap it,
+    // so a high-cost action from a model guess is still confirmed rather than run (L12, Horvitz).
+    let confidence = Math.round(Math.min(0.9, (proposal.confidence ?? 0.7) * p.asrConfidence) * 100) / 100;
+    // Two-signal rule: an irreversible action that only the model supports (the rules found no
+    // cue for it) is always confirmed. Found in testing: "get my old man on the line" scored 0.84
+    // and would have placed a call unasked. Agreeing evidence earns more weight (cf. cue
+    // integration, L04); a single unverified source does not get to act on high-cost tools.
+    const rulesAgree = p.candidates.some((c) => c.tool === proposal.tool);
+    let capped = false;
+    if (TOOLS[proposal.tool].risk.cost === 'high' && !rulesAgree && confidence >= THRESHOLDS.act) {
+      confidence = Math.round((THRESHOLDS.act - 0.01) * 100) / 100;
+      capped = true;
+    }
+    const intent = { tool: proposal.tool, args, confidence, missing: required.filter((k) => args[k] === undefined) };
+    this.log('llm_result', { used: true, intent, rejectedArgs: rejected, rulesAgree, capped });
+    return { ...p, intent, candidates: [{ tool: proposal.tool, score: confidence }], parser: 'llm' };
   }
 
   // ---------------------------------------------------------------- normal requests
@@ -244,7 +319,11 @@ export class DialogueManager {
     const undone = describeResult(u) + '.';
 
     if (safePause) return this.askChoice(ALL_OPTIONS.slice(0, MAX_OPTIONS), undone, { open: true });
+    // The undo is done and logged; only the follow-up may wait for the model.
+    return this.interpret(p, (q) => this.followUp(q, undone));
+  }
 
+  followUp(p, undone) {
     const ni = p.intent;
     if (ni && ni.confidence >= THRESHOLDS.ask) {
       if (ni.missing.length) return this.askSlot(ni, undone);
