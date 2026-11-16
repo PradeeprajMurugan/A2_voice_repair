@@ -233,11 +233,14 @@ export class DialogueManager {
   repair(target, p, tHeard, { safePause = false } = {}) {
     this.clearWait();
     this.stopSpeech('barge-in');
-    this.io.earcon && this.io.earcon('stop'); // non-speech cue: fast acknowledgement (L04)
+    // Undo before anything else: the action is what costs the user (measured: a cold audio
+    // context made the earcon delay the undo by ~150 ms when it ran first).
     const u = this.kitchen.undoAction(target.result);
+    const latencyMs = Math.round(this.clock.now() - tHeard);
+    this.io.earcon && this.io.earcon('stop'); // non-speech cue: fast acknowledgement (L04)
     this.target = null;
     this.pending = null;
-    this.log('undo', { result: u, latencyMs: Math.round(this.clock.now() - tHeard) });
+    this.log('undo', { result: u, latencyMs });
     const undone = describeResult(u) + '.';
 
     if (safePause) return this.askChoice(ALL_OPTIONS.slice(0, MAX_OPTIONS), undone, { open: true });
