@@ -3,90 +3,79 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sous — barge-in repair prototype</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Sous — guided demo</title>
+  <link rel="stylesheet" href="demo.css">
 </head>
 <body>
   <header class="top">
-    <div>
-      <h1>Sous <span class="sub">kitchen voice assistant · barge-in repair prototype</span></h1>
+    <div class="brand">
+      <h1>Sous</h1>
+      <p class="tagline">A kitchen voice assistant you can <b>interrupt</b> when it gets things wrong.</p>
     </div>
-    <div class="badges">
-      <span class="badge sim" title="Calls, timers, music and the list are simulated in the browser">Simulated actions</span>
-      <span class="badge" id="parserBadge">Parser: rules</span>
+    <div class="top-actions">
+      <button id="soundBtn" class="ghost" aria-pressed="true" title="Sous speaks out loud">🔊 Sound on</button>
+      <a class="ghost link" href="lab.html">Behind the scenes →</a>
     </div>
   </header>
 
-  <main class="grid">
-    <!-- Glanceable state: the screen holds the state, speech carries the exception (L07 hybrid) -->
-    <section class="panel status" aria-live="polite">
-      <div id="turn" class="turn idle">
-        <div class="turn-label" id="turnLabel">Ready</div>
-        <div class="turn-hint" id="turnHint">Say or type a request</div>
+  <section class="intro" id="intro">
+    <p><b>The problem:</b> voice assistants mishear. When your hands are covered in dough, fixing the
+      mistake is the hard part — you can't tap a screen, and most assistants make you wait, then start again.</p>
+    <p><b>Sous's answer:</b> just talk over it. It stops, undoes the mistake, says what it undid, and fixes it —
+      asking only for what it missed. Try the three short stories below.</p>
+  </section>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Stories"></nav>
+
+  <main class="stage">
+    <!-- The kitchen: what Sous says, what you said, what it heard, and what is happening -->
+    <section class="scene" aria-label="Kitchen">
+      <div class="speaker-row">
+        <div id="device" class="device idle" aria-hidden="true"><span></span></div>
+        <div class="bubble sous" id="sousBubble" aria-live="polite"><span class="who">Sous</span><span id="sousText" class="quiet">…</span></div>
       </div>
-      <div class="said" id="lastSaid"></div>
-
-      <h2>Kitchen</h2>
-      <div class="card" id="callCard"><div class="card-title">Call</div><div id="callBody" class="muted">No call</div></div>
-      <div class="card"><div class="card-title">Timers</div><ul id="timers" class="list"><li class="muted">None</li></ul></div>
-      <div class="card"><div class="card-title">Music</div><div id="music" class="muted">Off</div></div>
-      <div class="card"><div class="card-title">Shopping list</div><ul id="shopping" class="list"><li class="muted">Empty</li></ul></div>
-    </section>
-
-    <section class="panel convo">
-      <h2>Conversation</h2>
-      <div id="transcript" class="transcript" aria-live="polite"></div>
-      <div id="interim" class="interim"></div>
-      <div id="chips" class="chips" aria-label="Options you can say"></div>
-
-      <form id="sayForm" class="say">
-        <button type="button" id="micBtn" class="mic" aria-pressed="false" title="Use the microphone (Chrome/Edge)">🎙 Mic off</button>
-        <input id="sayInput" autocomplete="off" placeholder="Type what you say, e.g. “call mom” then “no wait, a timer”">
-        <button type="submit">Say</button>
-      </form>
-
-      <div class="sim-controls">
-        <fieldset>
-          <legend>Kitchen noise (typed input)</legend>
-          <label><input type="radio" name="noise" value="0" checked> Quiet</label>
-          <label><input type="radio" name="noise" value="1"> Extractor fan</label>
-          <label><input type="radio" name="noise" value="2"> Busy kitchen</label>
-        </fieldset>
-        <label class="pan"><input type="checkbox" id="panDrop"> Drop a pan on the next thing I say</label>
+      <div class="bubble you" id="youBubble" hidden>
+        <span class="who">You said</span><span id="youText"></span>
+        <div id="heardLine" class="heard" hidden>Sous heard: <b id="heardText"></b></div>
       </div>
-      <div class="quick">
-        <span class="muted">Try:</span>
-        <button class="q" data-say="call mom">call mom</button>
-        <button class="q" data-say="No, wait, stop! Set a ten minute timer">no, wait — a ten minute timer</button>
-        <button class="q" data-say="play some jazz">play some jazz</button>
-        <button class="q" data-say="stop the music">stop the music</button>
-        <button class="q" data-say="add eggs to the shopping list">add eggs</button>
+      <div id="status" class="status idle"><span id="statusText">Ready</span></div>
+
+      <div class="kitchen" aria-live="polite">
+        <div class="item" id="phoneItem"><div class="icon">📞</div><div><div class="label">Phone</div><div id="phoneText" class="val muted">Idle</div><div class="bar" id="phoneBar" hidden><span></span></div></div></div>
+        <div class="item" id="timerItem"><div class="icon">⏲️</div><div><div class="label">Timers</div><div id="timerText" class="val muted">None</div></div></div>
+        <div class="item" id="musicItem"><div class="icon">🎵</div><div><div class="label">Music</div><div id="musicText" class="val muted">Off</div></div></div>
+        <div class="item" id="listItem"><div class="icon">🛒</div><div><div class="label">Shopping list</div><div id="listText" class="val muted">Empty</div></div></div>
       </div>
     </section>
 
-    <section class="panel why">
-      <h2>Why it did that</h2>
-      <p class="muted small">Every decision with its reason, from the dialogue manager's own log.</p>
-      <ol id="why" class="why-list"></ol>
-
-      <h2>Replay a scenario</h2>
-      <div class="replay">
-        <select id="scenario"></select>
-        <button id="playBtn">Play</button>
+    <!-- The guide: one instruction at a time, with the buttons for exactly that step -->
+    <section class="guide" aria-label="What to do">
+      <div id="stepCount" class="step-count"></div>
+      <h2 id="stepTitle"></h2>
+      <p id="stepText" class="step-text"></p>
+      <div id="actions" class="actions"></div>
+      <div id="outcome" class="outcome" hidden></div>
+      <div id="free" class="free" hidden>
+        <button id="micBtn" class="mic" aria-pressed="false">🎙 Start talking</button>
+        <form id="sayForm" class="say">
+          <input id="sayInput" autocomplete="off" placeholder="…or type what you'd say, e.g. “play some jazz”">
+          <button type="submit">Say</button>
+        </form>
+        <div class="try" id="tryList"></div>
+        <p class="small muted">Tip: use headphones with the microphone, or Sous may hear itself.</p>
       </div>
-      <p id="story" class="small muted"></p>
-      <div class="row">
-        <button id="resetBtn">Reset</button>
-        <button id="exportBtn">Export log</button>
-        <a href="tests.html" target="_blank">Run tests</a>
-      </div>
+      <details class="thinking" id="thinkingBox">
+        <summary>Show what Sous is thinking</summary>
+        <ol id="thinking"></ol>
+      </details>
     </section>
   </main>
 
-  <footer class="foot small muted">
-    Placeholders: no real phone, timer or speaker hardware. Echo cancellation is approximated by a text filter — use headphones with the mic.
+  <footer class="foot">
+    Prototype: calls, timers and music are simulated in the browser — nobody is really called.
+    Story buttons type your words for you, so no microphone is needed.
   </footer>
 
-  <script type="module" src="src/app.js"></script>
+  <script type="module" src="src/demo.js"></script>
 </body>
 </html>
