@@ -1,8 +1,8 @@
 # Sous — barge-in repair for a hands-busy kitchen voice assistant
 
-Assignment 2 prototype · Intelligent Interactive Systems · University of Birmingham
+Intelligent Interactive Systems · University of Birmingham
 
-**README prose word count: 966** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
+**README prose word count: 1235** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
 
 When a voice assistant mishears ("Calling Mom…" instead of a timer), Sous lets the cook cut in with
 "No, wait — a timer". It stops talking, undoes the wrong action first, says in one sentence what it undid,
@@ -16,12 +16,13 @@ then does the right thing — or asks one short question if noise swallowed the 
 | Rule-based parser: repair markers, fuzzy fragments ("…imer"), slots | Implemented |
 | Policy: act / confirm / ask from confidence × cost; cost-dependent barge-in threshold | Implemented |
 | Five pre-action checks; replies built from tool results | Implemented |
-| Browser UI: turn indicator, kitchen state, option chips, "Why it did that" log | Implemented |
+| Guided demo (front page): three stories where Sous errs on purpose and the user repairs it; free play | Implemented |
+| Behind-the-scenes page: noise controls, scenario replay, full decision log | Implemented |
 | Speech in/out (Web Speech API, Chrome/Edge) | Implemented |
 | LLM interpreter (Claude API) for requests the rules are unsure about | Implemented, optional; tested with a fake model only |
 | Calls, timers, music, shopping list | Simulated in the browser |
 | Kitchen noise and pan drops | Simulated (typed input degraded on purpose) |
-| Acoustic echo cancellation | Placeholder: text-level echo filter; use headphones |
+| Acoustic echo cancellation | Placeholder: removes the assistant's own recent words from the transcript; headphones still best |
 | Real smart speaker, phone line, learning the user's own correction words | Planned |
 
 ## Run it
@@ -38,7 +39,7 @@ microphone is needed. **Behind the scenes** (`lab.html`) has the noise controls,
 the full decision log.
 
 Tests (no microphone, speaker or key needed): open http://localhost:8000/tests.html.
-It replays five scenarios on a simulated clock and runs 16 unit tests.
+It replays five scenarios on a simulated clock and runs 19 unit tests.
 
 ### Optional: the LLM interpreter
 
@@ -59,13 +60,15 @@ spoken utterance is sent to the Claude API. Model: `claude-opus-5-5` at low effo
 
 | Where | What |
 |---|---|
+| [src/demo.js](src/demo.js) | Guided demo: the three stories and their plain-language explanations |
 | [src/dialogue.js](src/dialogue.js) | States, barge-in handling, undo-first repair, clarification |
 | [src/policy.js](src/policy.js) | The two decision rules and their thresholds |
 | [src/tools.js](src/tools.js) | Simulated actions, risk profiles, checks, result wording |
 | [src/parser.js](src/parser.js) | Repair markers, fuzzy matching, slot extraction |
 | [scenarios/](scenarios/) | Recorded runs A–E with expected outcomes |
 | [tests/runner.js](tests/runner.js) | Replay engine and unit tests |
-| Export log button | Full JSON event log of a live session |
+| [lab.html](lab.html) → Export log | Full JSON event log of a live session |
+| [docs/storyboards/](docs/storyboards/) | Storyboards built from real screenshots of the demo |
 
 ## Technology stack
 
@@ -112,6 +115,21 @@ page load, hiding the call countdown; fixed. Checking the sources corrected the 
 Cuadra et al. (CSCW 2021, not CHI), the years of Myers et al. (2018) and Jiang et al. (2013) and the DOI of
 Wenzel & Kaufman; Avila et al. (2022) could not be found and was dropped.
 
+**Stage 8 — Sous heard itself** ([7156c4b](../../commit/7156c4b)). In a live microphone session on
+laptop speakers, Sous answered its own voice: the recogniser handed back its question glued to my
+"no no stop", so it asked "Timer for how many minutes?" three times. The old filter only checked while
+Sous was still speaking, but transcripts arrive after the audio ends. Sous now removes its own recent
+words from what it hears, and "stop" anywhere in an answer ends a question. "Hello" also got a list of
+features instead of a greeting; fixed. The session became three regression tests (19/19 pass).
+
+**Stage 9 — a demo people understand** ([4889821](../../commit/4889821), [627597d](../../commit/627597d)).
+Friends shown the first interface did not know what to do with it: the assistant, noise controls and
+logs shared one screen, and nothing went wrong unless you knew how to cause it, so there was nothing to
+repair. The front page is now a guided demo that makes Sous mishear on purpose and walks the user through
+the fix, showing "You said" beside "Sous heard". The technical screen moved to `lab.html`. Capturing the
+new storyboards showed that the interrupt button stayed active after use, so a second press undid the
+correction itself; it is now hidden once used.
+
 ## AI assistance
 
 - **Tool:** Claude Code (Claude Opus 5.5) in the Claude desktop app.
@@ -126,5 +144,8 @@ Wenzel & Kaufman; Avila et al. (2022) could not be found and was dropped.
 
 ## Additional files
 
-- [docs/design_notes.md](docs/design_notes.md) — concept map and literature to verify.
+- [docs/design_notes.md](docs/design_notes.md) — concept map and the sources checked.
+- Storyboard screenshots: `index.html?story=N&auto=1&quiet` captured with headless Chrome in virtual time
+  (so on-screen undo times read 0 ms; the live figure is 2 ms); `docs/storyboards/build_storyboards.py`
+  composes them.
 - No ZIP: everything is in this repository.

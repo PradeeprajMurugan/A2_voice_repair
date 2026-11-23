@@ -87,7 +87,7 @@ const ANSWER_TEXT = {
 // ------------------------------------------------------------------ speech
 const tts = createTts();
 const earcons = createEarcons();
-let soundOn = true;
+let soundOn = !new URLSearchParams(location.search).has('quiet');
 let audioCtx = null;
 function crashSound() {
   if (!soundOn) return;
@@ -295,7 +295,10 @@ function renderGuide(v, s) {
     acts = answerButtons(v);
     if (!acts.length) text += '<span class="hint">Listen to Sous…</span>';
   }
-  if (st.hint) text += `<span class="hint">${esc(st.hint)}</span>`;
+  // The last scripted line has been said: no buttons until the story ends (a second click on
+  // "No, wait" would undo the correction itself).
+  if (step >= n && !st.answers) { acts = []; text = '<span class="hint">Listen to Sous…</span>'; title = 'Listen'; }
+  else if (st.hint) text += `<span class="hint">${esc(st.hint)}</span>`;
   $('stepTitle').textContent = title;
   $('stepText').innerHTML = text;
   const row = st.answers;
@@ -309,7 +312,7 @@ function renderGuide(v, s) {
   // ?auto: click through the story by itself (for screenshots and hands-free demos).
   if (auto && acts.length && !autoTimer) {
     const pick = acts.findIndex((a) => a.auto); const i = pick >= 0 ? pick : 0;
-    autoTimer = setTimeout(() => { autoTimer = null; $('actions').querySelector(`.act[data-i="${i}"]`)?.click(); }, step === 0 ? 900 : 1300);
+    autoTimer = setTimeout(() => { autoTimer = null; $('actions').querySelector(`.act[data-i="${i}"]`)?.click(); }, step === 0 ? 900 : st.answers ? 4000 : 1300); // answers wait for Sous to finish asking
   }
 }
 
@@ -404,6 +407,7 @@ function renderThinking(events) {
 }
 $('thinkingBox').addEventListener('toggle', render);
 
+if (!soundOn) { $('soundBtn').setAttribute('aria-pressed', 'false'); $('soundBtn').textContent = '🔇 Sound off'; }
 $('soundBtn').addEventListener('click', () => {
   soundOn = !soundOn;
   if (!soundOn) tts.stop();

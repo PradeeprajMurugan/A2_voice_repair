@@ -40,7 +40,7 @@ h1 { margin: 0; font-size: 28px; letter-spacing: -.01em; }
 
 /* Sous device: a pulsing speaker so "is it talking?" is visible at a glance */
 .speaker-row { display: flex; gap: 14px; align-items: flex-start; }
-.device { flex: 0 0 64px; height: 64px; border-radius: 50%; background: #59606b; display: grid; place-items: center; transition: background .15s; }
+.device { flex: 0 0 64px; height: 64px; border-radius: 50%; background: #59606b; display: grid; place-items: center; }
 .device span { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.85); }
 .device.speaking { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
 .device.stopped { background: var(--stop); }
