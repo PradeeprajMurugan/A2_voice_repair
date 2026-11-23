@@ -11,7 +11,7 @@
 //   - Yield the floor at once when the user speaks over the system (turn-taking, L07).
 //   - Undo first, then speak; say what was undone in words built from the tool result (L12).
 //   - Never fall silent after a partial repair: ask a narrow question, keep listening,
-//     and say so if the wait times out (Lab 3 revision).
+//     and say so if the wait times out (never go silent).
 
 import { parse as ruleParse, stripEcho, normalize } from './parser.js';
 import { decide, classifyInterruption, costOf, THRESHOLDS, LOUD, MAX_OPTIONS } from './policy.js';
@@ -366,7 +366,7 @@ export class DialogueManager {
       this.setState('idle');
       return this.say(undone);
     }
-    // Lab 3 revision: the correction was lost, so say what was undone and ask — never go silent.
+    // The correction was lost, so say what was undone and ask — never go silent.
     return this.askChoice(ALL_OPTIONS.slice(0, MAX_OPTIONS), undone, { open: true });
   }
 

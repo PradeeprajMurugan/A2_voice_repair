@@ -1,7 +1,7 @@
 // Rule-based intent parser (IMPLEMENTED). Deterministic, so recorded runs replay identically.
 //
 // Output is a structured *proposal* (L12): the dialogue manager and tools.js decide what runs.
-// The parser separates two things the user may say in one breath (A1 contribution):
+// The parser separates two things the user may say in one breath (the core of the design):
 //   1. a repair marker  ("no, wait", "stop", "I meant")  -> undo the current action
 //   2. a new request     ("a ten-minute timer")           -> what to do instead
 // Fuzzy matching lets a noise-clipped fragment ("...imer") still yield a *candidate* the

@@ -6,7 +6,7 @@
 //   noise 1 fan     : ~15% of words masked, confidence 0.75
 //   noise 2 busy    : ~30% of words masked, confidence 0.55
 //   panDrop         : a loud transient masks everything after the first two words except the
-//                     tail of the last word ("timer" -> "imer"), loudness 0.9 (Lab 3 Test B)
+//                     tail of the last word ("timer" -> "imer"), loudness 0.9 (scenario B)
 
 const LEVELS = [
   { mask: 0, conf: 0.95, loudness: 0.5 },

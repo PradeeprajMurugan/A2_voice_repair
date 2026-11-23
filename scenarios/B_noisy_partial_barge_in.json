@@ -1,7 +1,7 @@
 {
   "id": "B_noisy_partial_barge_in",
-  "title": "B. Noisy partial barge-in: the correction is clipped by a dropped pan (Lab 3 Test B, revised)",
-  "story": "Same misrecognised call. The user shouts 'No, wait!' but drops a pan, so the recogniser only gets '…imer'. In Lab 3 the system stopped the call and went silent.",
+  "title": "B. Noisy partial barge-in: the correction is clipped by a dropped pan",
+  "story": "Same misrecognised call. The user shouts 'No, wait!' but drops a pan, so the recogniser only gets '…imer'. A system that only stops the call and goes silent leaves the user unsure whether it stopped, and forced to start again.",
   "steps": [
     { "at": 0, "heard": "call mom", "asr": 0.92, "intended": "set a ten minute timer" },
     { "at": 900, "heard": "no wait [crash] imer", "asr": 0.55, "loudness": 0.9 },

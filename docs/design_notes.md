@@ -1,8 +1,8 @@
 # Design notes (working document)
 
-Carried forward from Assignment 1 and Labs 1–3. These notes feed the A2 report's rationale; they are not the report.
+Working notes behind the report's design rationale; they are not the report.
 
-## Problem (A1, revised)
+## Problem
 
 People cooking with busy hands and eyes rely on a voice assistant. When it mishears and starts the wrong action
 (for example "Calling Mom" instead of "set a timer"), current assistants make recovery slow: the user must wait for the
@@ -18,13 +18,13 @@ The user interrupts the assistant mid-action ("No, wait — a timer"). The syste
 3. gives one short self-repair line built from the action's real result,
 4. carries out the correction, or asks a narrow clarification question if the correction was lost in noise.
 
-## Lab 3 findings that shaped the design
+## Early failure that shaped the design
 
-- Test A (clean barge-in): undo + new action works as specified.
-- Test B (barge-in masked by a dropped pan): the system stopped the call but went silent. The user could not tell
-  whether the call had stopped and had to start again.
-- Revision: after an undo with no usable new intent, enter a CLARIFICATION state, say what was undone, ask what was
-  wanted instead, keep the microphone open.
+- A clean interruption (scenario A) is the easy case: undo the wrong action, run the correction.
+- The hard case is an interruption masked by noise (scenario B: a dropped pan). A system that stops the call and
+  then goes silent leaves the user unsure whether it stopped, and they have to start again.
+- Design response: after an undo with no usable new request, enter a CLARIFICATION state, say what was undone,
+  offer the best guesses, and keep the microphone open.
 
 ## Lecture concepts mapped to design choices
 
@@ -40,10 +40,9 @@ The user interrupts the assistant mid-action ("No, wait — a timer"). The syste
 | Model proposes an intent, code validates and executes; reply built from tool return value | "The model proposes, your system disposes", five checks, process hallucination (L12) |
 | Session-only event log, no long-term memory | Store less; inspectable / editable / forgettable memory (L10) |
 
-## Literature to re-verify before citing (A1 marking flagged a suspect citation)
+## Sources checked before citing
 
-- Cuadra et al. (2021), CHI '21, doi:10.1145/3411764.3445778 — checked in Lab 1.
-- Wenzel & Kaufman (2024), CHI '24, doi:10.1145/3613904.3642398 — checked in Lab 1.
-- Myers et al. — A1 says 2020; likely CHI 2018 ("Patterns for how users overcome obstacles in voice user interfaces"). Verify.
-- Avila et al. (2022) — not yet verified. Verify or drop.
-- Jiang et al. — A1 says 2023; likely SIGIR 2013 ("How do users respond to voice input errors?"). Verify.
+Each source was looked up before use. Corrections made: Cuadra et al. (2021) appeared at CSCW, not CHI;
+Myers et al. is CHI 2018 ("Patterns for how users overcome obstacles in voice user interfaces"); Jiang et al. is
+SIGIR 2013 ("How do users respond to voice input errors?"); the DOI for Wenzel & Kaufman (CHI 2024) was corrected.
+Avila et al. (2022) could not be found and is not cited.

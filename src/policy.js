@@ -65,7 +65,7 @@ export function classifyInterruption(parsed, activeCost, loudness = 0.5) {
   }
   const unintelligible = !parsed.intent && parsed.candidates.length === 0;
   if (unintelligible && loudness >= LOUD && activeCost === 'high') {
-    // Lab 3 fallback: a shout we cannot parse during a high-stakes action -> stop it safely, then ask.
+    // Fallback: a shout we cannot parse during a high-stakes action -> stop it safely, then ask.
     return { kind: 'safe_pause', criterion, evidence: loudness, reason: `loud (${loudness}) unintelligible speech during a high-cost action` };
   }
   if (parsed.intent) return { kind: 'new_command', criterion, evidence, reason: 'new request without a repair marker' };

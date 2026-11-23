@@ -2,7 +2,7 @@
 
 Assignment 2 prototype · Intelligent Interactive Systems · University of Birmingham
 
-**README prose word count: 955** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
+**README prose word count: 966** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
 
 When a voice assistant mishears ("Calling Mom…" instead of a timer), Sous lets the cook cut in with
 "No, wait — a timer". It stops talking, undoes the wrong action first, says in one sentence what it undid,
@@ -32,8 +32,10 @@ Needs Python 3.10+ and Chrome or Edge. No other dependencies.
 py server.py
 ```
 
-Open http://localhost:8000. Type or click a "Try" phrase, or press **🎙 Mic** to speak.
-Pick a scenario under **Replay a scenario** to watch a recorded run with speech.
+Open http://localhost:8000 for the **guided demo**: three short stories in which Sous gets something
+wrong and you fix it, plus a free-play tab with the microphone. The buttons speak for you, so no
+microphone is needed. **Behind the scenes** (`lab.html`) has the noise controls, scenario replays and
+the full decision log.
 
 Tests (no microphone, speaker or key needed): open http://localhost:8000/tests.html.
 It replays five scenarios on a simulated clock and runs 16 unit tests.
@@ -76,9 +78,9 @@ spoken utterance is sent to the Claude API. Model: `claude-opus-5-5` at low effo
 
 ## Development record
 
-**Stage 1 — carry forward A1 and Lab 3** ([a4868a3](../../commit/a4868a3)). Restated the problem and mapped
-Weeks 1–4 concepts to planned choices in [docs/design_notes.md](docs/design_notes.md). Flagged A1 citations
-to re-verify, because A1 marking found a suspect reference.
+**Stage 1 — problem and concepts** ([a4868a3](../../commit/a4868a3)). Stated the problem and mapped
+Weeks 1–4 concepts to planned choices in [docs/design_notes.md](docs/design_notes.md). Listed every source
+to check before citing.
 
 **Stage 2 — core logic** ([86f9024](../../commit/86f9024), [3573671](../../commit/3573671),
 [6fc4230](../../commit/6fc4230), [b9c1b8e](../../commit/b9c1b8e)). Built tools, parser, policy and dialogue
@@ -106,14 +108,14 @@ model are now always confirmed. Not yet checked against the real API.
 
 **Stage 7 — storyboards and sources** ([d2f93fc](../../commit/d2f93fc), [43e296f](../../commit/43e296f)).
 Capturing storyboard screenshots showed the turn indicator wrongly reading "Stopped" for 0.7 s after every
-page load, hiding the call countdown; fixed. Re-checking the Assignment 1 sources corrected the venue of
+page load, hiding the call countdown; fixed. Checking the sources corrected the venue of
 Cuadra et al. (CSCW 2021, not CHI), the years of Myers et al. (2018) and Jiang et al. (2013) and the DOI of
 Wenzel & Kaufman; Avila et al. (2022) could not be found and was dropped.
 
 ## AI assistance
 
 - **Tool:** Claude Code (Claude Opus 5.5) in the Claude desktop app.
-- **Asked for:** turning my A1 problem and Lab 3 spec into a prototype plan; mapping lecture concepts to
+- **Asked for:** turning my problem statement and test plan into a prototype plan; mapping lecture concepts to
   design choices; writing the code, tests and scenarios; drafting this README.
 - **How results were checked:** every scenario and unit test run in the browser and recorded above with
   pass counts; the latency figure measured in the running app; the no-key path checked by starting the server
