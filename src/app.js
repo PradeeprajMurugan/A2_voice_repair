@@ -3,8 +3,8 @@ import { realClock } from './clock.js';
 import { createKitchen, cap } from './tools.js';
 import { DialogueManager } from './dialogue.js';
 import { simulateAsr } from './asr_sim.js';
-import { createTts, createEarcons, createRecogniser, makeEchoFilter } from './speech.js';
-import { parse as ruleParse } from './parser.js';
+import { createTts, createEarcons, createRecogniser } from './speech.js';
+import { parse as ruleParse, stripEcho } from './parser.js';
 import { makeLlmParser } from './llm_parser.js';
 
 const $ = (id) => document.getElementById(id);
@@ -57,7 +57,7 @@ $('sayForm').addEventListener('submit', (e) => {
 document.querySelectorAll('.q').forEach((b) => b.addEventListener('click', () => sayTyped(b.dataset.say)));
 
 const rec = createRecogniser({
-  isEcho: makeEchoFilter(() => (dm.speaking ? dm.lastSaid : '')),
+  cleanEcho: (text) => stripEcho(text, dm.recentSpeech()),
   onStatus: (s) => { $('micBtn').title = 'Microphone: ' + s; },
   onInterim: (text) => {
     $('interim').textContent = 'hearing: ' + text + '…';

@@ -1,10 +1,8 @@
 // Browser speech I/O (IMPLEMENTED with the Web Speech API; best in Chrome or Edge).
 //
 // Echo: a real smart speaker cancels its own voice in the microphone signal (AEC, PLANNED —
-// hardware/DSP). Here a text-level echo filter (SIMULATED stand-in) ignores recognised text that
-// matches what the assistant is currently saying. Use headphones for the cleanest demo.
-
-import { normalize } from './parser.js';
+// hardware/DSP). Here a text-level stand-in (SIMULATED) removes the assistant's own recent words
+// from what the recogniser hands back (stripEcho in parser.js). Headphones still work best.
 
 export function createTts({ rate = 1.1 } = {}) {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
@@ -73,7 +71,7 @@ export function createEarcons() {
  * onInterim(text) fires as soon as words are recognised (used to yield the floor early);
  * onFinal({text, asrConfidence}) fires once per utterance.
  */
-export function createRecogniser({ onInterim, onFinal, onStatus, isEcho }) {
+export function createRecogniser({ onInterim, onFinal, onStatus, cleanEcho = (t) => t }) {
   const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
   if (!SR) return { available: false, start() {}, stop() {} };
   let rec = null, wanted = false;
@@ -86,9 +84,11 @@ export function createRecogniser({ onInterim, onFinal, onStatus, isEcho }) {
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const res = ev.results[i];
         const text = res[0].transcript.trim();
-        if (!text || isEcho(text)) continue;
+        if (!text) continue;
+        // Finals go to the dialogue manager whole (it strips echo and logs it); interims that are
+        // only echo must not make the assistant interrupt itself.
         if (res.isFinal) onFinal({ text, asrConfidence: res[0].confidence || 0.8 });
-        else onInterim(text);
+        else if (cleanEcho(text)) onInterim(cleanEcho(text));
       }
     };
     r.onstart = () => onStatus('listening');
@@ -100,15 +100,5 @@ export function createRecogniser({ onInterim, onFinal, onStatus, isEcho }) {
     available: true,
     start() { wanted = true; rec = rec || make(); try { rec.start(); } catch { /* already running */ } },
     stop() { wanted = false; rec?.stop(); },
-  };
-}
-
-// Text-level echo filter: is this recognised text just the assistant hearing itself?
-export function makeEchoFilter(getSpeaking) {
-  return (text) => {
-    const s = getSpeaking();
-    if (!s) return false;
-    const heard = normalize(text), said = normalize(s);
-    return heard.length > 0 && said.includes(heard);
   };
 }

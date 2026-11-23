@@ -4,7 +4,7 @@
 import { FakeClock } from '../src/clock.js';
 import { createKitchen, checkShape } from '../src/tools.js';
 import { DialogueManager } from '../src/dialogue.js';
-import { parse } from '../src/parser.js';
+import { parse, stripEcho } from '../src/parser.js';
 import { decide, classifyInterruption } from '../src/policy.js';
 
 export const MS_PER_CHAR = 60; // simulated speaking rate (~16 chars/s)
@@ -148,6 +148,42 @@ export const UNIT_TESTS = [
     const dm = new DialogueManager({ clock, kitchen: createKitchen(clock), io });
     dm.hear({ text: 'cancel' });
     eq(io.said, ["There's nothing to cancel right now."], 'said');
+  }],
+  // From a live mic session on laptop speakers: the recogniser glued Sous's own question onto the
+  // user's "no no stop", so Sous answered its own echo and asked the same question three times.
+  ['echo: own words are removed, what the user said is kept', () => {
+    const q = 'Timer for how many minutes?';
+    eq(stripEcho('timer for how many minutes no no stop', [q]), 'no no stop', 'prefix echo');
+    eq(stripEcho('I can set a timer play music add to your shopping list', ['I can set a timer, play music, add to your shopping list or call someone.']), '', 'all echo');
+    eq(stripEcho('timer for how many minutes timer set', [q, 'Timer set for 5 minutes.']), '', 'two echoes glued');
+    eq(stripEcho('five minutes', [q]), 'five minutes', 'a real answer survives');
+    eq(stripEcho('music', ['Music or a timer?']), 'music', 'one-word answer is not treated as echo');
+  }],
+  ['echo: "stop" after an echoed question ends the question', () => {
+    const clock = new FakeClock();
+    const io = makeFakeIO(clock);
+    const dm = new DialogueManager({ clock, kitchen: createKitchen(clock), io });
+    dm.hear({ text: 'set a timer' });
+    clock.advance(3000); // question finished speaking
+    dm.hear({ text: 'timer for how many minutes no no stop', source: 'mic' });
+    eq(io.said[io.said.length - 1], 'Okay, nothing else for now.', 'ended');
+    eq(dm.state, 'idle', 'state');
+    clock.advance(3000);
+    const n = io.said.length;
+    dm.hear({ text: 'okay nothing else for now', source: 'mic' });
+    eq(io.said.length, n, 'pure echo is ignored');
+  }],
+  ['dialogue: "stop" anywhere ends a question; hello gets a greeting', () => {
+    const clock = new FakeClock();
+    const io = makeFakeIO(clock);
+    const dm = new DialogueManager({ clock, kitchen: createKitchen(clock), io });
+    dm.hear({ text: 'set a timer' });
+    clock.advance(3000);
+    dm.hear({ text: 'no timer stop' });
+    eq(io.said[io.said.length - 1], 'Okay, nothing else for now.', 'stop at the end');
+    clock.advance(3000);
+    dm.hear({ text: 'hello' });
+    eq(io.said[io.said.length - 1].startsWith('Hi!'), true, 'greeting');
   }],
 ];
 

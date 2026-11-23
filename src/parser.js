@@ -193,6 +193,45 @@ function detectYesNo(norm) {
  * @param {string} text            ASR transcript (may contain [noise] markers)
  * @param {number} asrConfidence   0..1 from the recogniser (1 for typed input)
  */
+// Echo removal. Without hardware echo cancellation the microphone also hears the assistant, and
+// the recogniser often glues that echo onto the user's words ("timer for how many minutes no no
+// stop"). Strip any leading run of 2+ words that follows one of the assistant's recent sentences
+// in order, repeatedly; return what is left ('' = it was all echo).
+export function stripEcho(text, recentSaid = []) {
+  let words = normalize(text).split(' ').filter(Boolean);
+  const saids = recentSaid.map((s) => normalize(s).split(' ').filter(Boolean)).filter((w) => w.length);
+  for (let changed = true; changed && words.length;) {
+    changed = false;
+    for (const sw of saids) {
+      let j = 0, k = 0;
+      while (k < words.length) {
+        const from = k === 0 ? 0 : j;
+        const limit = k === 0 ? sw.length : Math.min(sw.length, j + 3); // allow up to 2 dropped words
+        let idx = -1;
+        for (let x = from; x < limit; x++) if (sw[x] === words[k]) { idx = x; break; }
+        if (idx < 0) break;
+        j = idx + 1; k++;
+      }
+      if (k >= 2) { words = words.slice(k); changed = true; break; }
+    }
+  }
+  return words.join(' ');
+}
+
+const STOP_WORDS = new Set(['stop', 'cancel', 'nevermind']);
+const STOP_PHRASES = ['never mind', 'hang up', 'forget it'];
+const GREETINGS = new Set(['hello', 'hi', 'hey', 'hiya', 'morning', 'evening', 'afternoon']);
+const THANKS = ['thanks', 'thank you', 'cheers', 'ta'];
+const CAPABILITY_QS = ['what can you do', 'help', 'what do you do'];
+
+function detectSocial(norm) {
+  const words = norm.split(' ');
+  if (THANKS.some((t) => norm === t || norm.startsWith(t + ' '))) return 'thanks';
+  if (CAPABILITY_QS.some((q) => norm.includes(q))) return 'help';
+  if (GREETINGS.has(words[0]) || (words[0] === 'good' && GREETINGS.has(words[1]))) return 'greeting';
+  return null;
+}
+
 export function parse(text, asrConfidence = 1) {
   const norm = normalize(text);
   const tokens = norm ? norm.split(' ') : [];
@@ -234,6 +273,9 @@ export function parse(text, asrConfidence = 1) {
     intent,
     candidates: candidates.slice(0, 3),
     yesNo: detectYesNo(norm),
+    // "stop" anywhere in the utterance, not only at the start ("no timer stop").
+    stopWord: tokens.some((t) => STOP_WORDS.has(t)) || STOP_PHRASES.some((ph) => (' ' + norm + ' ').includes(' ' + ph + ' ')),
+    social: intent ? null : detectSocial(norm),
     minutes: extractMinutes(tokens),
     contact: extractContact(tokens),
     asrConfidence,

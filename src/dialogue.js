@@ -13,11 +13,12 @@
 //   - Never fall silent after a partial repair: ask a narrow question, keep listening,
 //     and say so if the wait times out (Lab 3 revision).
 
-import { parse as ruleParse } from './parser.js';
+import { parse as ruleParse, stripEcho, normalize } from './parser.js';
 import { decide, classifyInterruption, costOf, THRESHOLDS, LOUD, MAX_OPTIONS } from './policy.js';
 import { TOOLS, CONTACTS, describeResult, cap, checkArg } from './tools.js';
 
 export const CLARIFY_TIMEOUT_MS = 8000;
+export const ECHO_WINDOW_MS = 4000; // how long after speaking the recogniser may echo it back
 export const CONFIRM_TIMEOUT_MS = 6000;
 export const REPAIR_WINDOW_MS = 10000; // timers / list items can be undone by "no, wait" for 10 s
 
@@ -59,6 +60,7 @@ export class DialogueManager {
     this.state = 'idle';
     this.speaking = false;
     this.lastSaid = '';
+    this.saidLog = []; // { text, endedAt } — for echo removal
     this.target = null; // { result, at } — the action a barge-in would undo
     this.pending = null; // confirming / clarifying context
     this.timer = null;
@@ -101,10 +103,14 @@ export class DialogueManager {
     const id = ++this.speechId;
     this.speaking = true;
     this.lastSaid = text;
+    this.saidLog.forEach((e) => { if (e.endedAt === null) e.endedAt = this.clock.now(); });
+    this.saidLog.push({ text, endedAt: null });
+    this.saidLog = this.saidLog.slice(-4);
     this.log('say', { text });
     this.update();
     this.io.speak(text, () => {
       if (id !== this.speechId) return; // superseded or interrupted
+      this.markSpeechEnded();
       this.speaking = false;
       this.update();
       then && then();
@@ -114,9 +120,22 @@ export class DialogueManager {
   stopSpeech(reason) {
     if (!this.speaking) return;
     this.speechId++; // invalidate the pending onEnd
+    this.markSpeechEnded();
     this.speaking = false;
     this.io.stopSpeaking();
     this.log('speech_stopped', { reason });
+  }
+
+  markSpeechEnded() {
+    const last = this.saidLog[this.saidLog.length - 1];
+    if (last && last.endedAt === null) last.endedAt = this.clock.now();
+  }
+
+  // What the assistant said recently enough that the recogniser may still hand it back to us.
+  // Chrome often finalises a transcript a few seconds after the audio, so the window is generous.
+  recentSpeech(windowMs = ECHO_WINDOW_MS) {
+    const now = this.clock.now();
+    return this.saidLog.filter((e) => e.endedAt === null || now - e.endedAt <= windowMs).map((e) => e.text);
   }
 
   startWait(ms, onTimeout) {
@@ -145,6 +164,13 @@ export class DialogueManager {
    */
   hear({ text, asrConfidence = 1, loudness = 0.5, source = 'typed' }) {
     const tHeard = this.clock.now();
+    if (source === 'mic') {
+      // The microphone also hears the assistant: remove its own words before interpreting.
+      const cleaned = stripEcho(text, this.recentSpeech());
+      if (normalize(cleaned) !== normalize(text)) this.log('echo_removed', { heard: text, kept: cleaned });
+      if (!cleaned) return this.update();
+      text = cleaned;
+    }
     this.interpretId++; // a new turn supersedes any model call still in flight
     this.thinking = false;
     this.log('heard', { text, asrConfidence, loudness, source });
@@ -265,7 +291,10 @@ export class DialogueManager {
       case 'decline':
       default:
         this.setState('idle');
-        return this.say(pre + 'I can set a timer, play music, add to your shopping list or call someone.');
+        if (p.social === 'greeting') return this.say(pre + 'Hi! What are we cooking? I can set a timer, play music, add to your shopping list or call someone.');
+        if (p.social === 'thanks') return this.say(pre + "You're welcome.");
+        if (p.social === 'help') return this.say(pre + 'I can set a timer, play music, add to your shopping list or call someone. If I get it wrong, just talk over me.');
+        return this.say(pre + "Sorry, I can't do that. I can set a timer, play music, add to your shopping list or call someone.");
     }
   }
 
@@ -364,8 +393,11 @@ export class DialogueManager {
   onClarifyAnswer(p) {
     this.clearWait();
     const pend = this.pending;
-    // "No, never mind" while being asked: end cleanly, and say so.
-    if ((p.repair.detected || p.yesNo === 'no') && !p.intent && p.minutes === undefined && !p.contact) {
+    // "No, never mind" or "stop" while being asked: end cleanly, and say so. "Stop" anywhere wins
+    // unless the user also names a different action ("stop, play music instead").
+    const sameAction = !p.intent || p.intent.tool === pend.tool || (pend.options || []).includes(p.intent.tool);
+    const noAnswer = p.minutes === undefined && !p.contact;
+    if (noAnswer && ((p.stopWord && sameAction) || ((p.repair.detected || p.yesNo === 'no') && !p.intent))) {
       this.pending = null;
       this.setState('idle');
       return this.say('Okay, nothing else for now.');
