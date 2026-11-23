@@ -2,7 +2,7 @@
 
 Intelligent Interactive Systems · University of Birmingham
 
-**README prose word count: 1235** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
+**README prose word count: 1403** (code blocks and commands not counted; `py tools/wordcount.py README.md`)
 
 When a voice assistant mishears ("Calling Mom…" instead of a timer), Sous lets the cook cut in with
 "No, wait — a timer". It stops talking, undoes the wrong action first, says in one sentence what it undid,
@@ -134,13 +134,26 @@ correction itself; it is now hidden once used.
 
 - **Tool:** Claude Code (Claude Opus 5.5) in the Claude desktop app.
 - **Asked for:** turning my problem statement and test plan into a prototype plan; mapping lecture concepts to
-  design choices; writing the code, tests and scenarios; drafting this README.
+  design choices; writing the code, tests and scenarios; drafting this README and the report.
 - **How results were checked:** every scenario and unit test run in the browser and recorded above with
   pass counts; the latency figure measured in the running app; the no-key path checked by starting the server
   without the `anthropic` package.
-- **What changed because of checking:** the four fixes in stages 3–6 came from tests or measurement, not
-  from the first version of the code.
-- TODO (student): add the design decisions you changed or rejected, and what you checked yourself.
+- **What changed because of checking:** the fixes in stages 3–9 came from tests, measurement or my own
+  use of the prototype, not from the first version of the code.
+- **What I decided, changed or rejected:**
+  - Kept the kitchen interrupt-and-repair idea after weighing a switch to a different project: the
+    problem was how the prototype was presented, not the idea.
+  - Rejected the first three-panel interface as the front page after friends could not tell how to use
+    it, and asked for a guided demo that makes the mistake happen so the repair can be seen.
+  - Asked for the project to stand on its own, citing the literature directly rather than earlier
+    coursework.
+  - Kept the scope to one interaction, interrupting and repairing a wrong action, instead of adding features.
+- **What I checked myself:** I tested the microphone on laptop speakers and reported the transcript in
+  which Sous answered its own voice (stage 8), then re-ran five spoken checks after the fix; clicked
+  through the guided demo; read the exported Word report; and confirmed in a private browser window that
+  this repository is public.
+- **Also drafted with Claude:** the report text, including its reflection section, which I read and checked
+  against what happened.
 
 ## Additional files
 
